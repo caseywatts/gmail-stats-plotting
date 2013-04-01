@@ -81,7 +81,7 @@ svg.selectAll(".month")
 d3.csv("gmail-counts.csv", function(error, csv) {
   var data = d3.nest()
     .key(function(d) { return d.date; })
-    .rollup(function(d) { return (d[0].incoming); })
+    .rollup(function(d) { return (d[0].outgoing); })
     .map(csv);
 
     //There must be a cleaner way to get the max of the data

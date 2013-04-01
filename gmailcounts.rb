@@ -15,7 +15,9 @@ require "highline/import"
 require 'gmail'
 
 # sudo gem install fastercsv
-require 'faster_csv'
+require 'csv'
+
+
 
 begin
   USERNAME = ask("Enter email address:")
@@ -56,15 +58,21 @@ begin
   puts "In/Out by day. How many days?"
   numdays = gets.chomp.to_i
 
-  #Start counting from the last full day
-  refdate = Date.today - 1.day
-  if numdays > 0
-    puts "\nDate\tIn Count\tOut Count"
-    numdays.times do
-      incount = gmail.mailbox('[Gmail]/All Mail').count(:read, :after => (refdate), :before => (refdate+1.day)).to_s
-      outcount = gmail.mailbox('[Gmail]/Sent Mail').count(:after => (refdate), :before => (refdate+1.day)).to_s
-      puts refdate.to_s + "\t" + incount + "\t" + outcount + "\n"
-      refdate = refdate - 1.day
+  CSV_FILE = "gmail-counts.csv"
+  CSV.open(CSV_FILE, "w") do |csv|
+    csv << ["date", "incoming", "outgoing"]
+
+    #Start counting from the last full day
+    refdate = Date.today - 1.day
+    if numdays > 0
+      puts "\nDate\tIn Count\tOut Count"
+      numdays.times do
+        incount = gmail.mailbox('[Gmail]/All Mail').count(:read, :after => (refdate), :before => (refdate+1.day)).to_s
+        outcount = gmail.mailbox('[Gmail]/Sent Mail').count(:after => (refdate), :before => (refdate+1.day)).to_s
+        puts refdate.to_s + "\t" + incount + "\t" + outcount + "\n"
+        csv << [refdate.to_s, incount, outcount]
+        refdate = refdate - 1.day
+      end
     end
   end
   

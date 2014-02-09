@@ -14,67 +14,98 @@ require "highline/import"
 # http://rubydoc.info/gems/gmail/0.3.4/frames
 require 'gmail'
 
-# sudo gem install fastercsv
 require 'csv'
 
 
+  if ARGV[0]
+    USERNAME = ARGV[0]
+  else
+    USERNAME = ask("Enter email address:")
+  end
 
-begin
-  USERNAME = ask("Enter email address:")
   PASSWORD = ask("Enter password for " + USERNAME) { |q| q.echo = "x" }
-
 
   gmail = Gmail.connect(USERNAME, PASSWORD)
 
-  #Number read so far today
-  todaysofar = gmail.mailbox("[Gmail]/All Mail").count(:read, :on => Date.today)
-  puts "Number read emails today (so far) = " + todaysofar.to_s
 
-  #Number unread so far today
-  todaysofar = gmail.mailbox("[Gmail]/All Mail").count(:unread, :on => Date.today)
-  puts "Number unread emails today (so far) = " + todaysofar.to_s
+  ##Number read so far today
+  #todaysofar = gmail.mailbox("[Gmail]/All Mail").count(:read, :on => Date.today)
+  #puts "Number read emails today (so far) = " + todaysofar.to_s
+
+  ##Number unread so far today
+  #todaysofar = gmail.mailbox("[Gmail]/All Mail").count(:unread, :on => Date.today)
+  #puts "Number unread emails today (so far) = " + todaysofar.to_s
 
 
 
-  #Count the number of incoming and outgoing messages per week, past n weeks
-  puts "In/Out by week. How many weeks?"
-  numweeks = gets.chomp.to_i
+  ##Count the number of incoming and outgoing messages per week, past n weeks
+  #puts "In/Out by week. How many weeks?"
+  #numweeks = $stdin.gets.chomp.to_i
 
-  #Start counting from the last full week
-  refdate = Date.today.end_of_week - 1.day - 1.week
-  if numweeks > 0
-    puts "\nWeek End Date\tIn Count\tOut Count"
-    numweeks.times do
-      incount = gmail.mailbox('[Gmail]/All Mail').count(:read, :after => (refdate), :before => (refdate+1.week)).to_s
-      outcount = gmail.mailbox('[Gmail]/Sent Mail').count(:after => (refdate), :before => (refdate+1.week)).to_s
-      puts refdate.to_s + "\t" + incount + "\t" + outcount + "\n"
-      refdate = refdate - 1.week
-    end
-  end
+  ##Start counting from the last full week
+  #refdate = Date.today.end_of_week - 1.day - 1.week
+  #if numweeks > 0
+    #puts "\nWeek End Date\tIn Count\tOut Count"
+    #numweeks.times do
+      #incount = gmail.mailbox('[Gmail]/All Mail').count(:read, :after => (refdate), :before => (refdate+1.week)).to_s
+      #outcount = gmail.mailbox('[Gmail]/Sent Mail').count(:after => (refdate), :before => (refdate+1.week)).to_s
+      #puts refdate.to_s + "\t" + incount + "\t" + outcount + "\n"
+      #refdate = refdate - 1.week
+    #end
+  #end
 
 
 
   #Count the number of incoming and outgoing messages per day, past n days
   puts "In/Out by day. How many days?"
-  numdays = gets.chomp.to_i
+  numdays = $stdin.gets.chomp.to_i
 
-  CSV_FILE = "gmail-counts.csv"
-  CSV.open(CSV_FILE, "w") do |csv|
-    csv << ["date", "incoming", "outgoing"]
+  CSV_FILE = "gmail-counts-stmgt.csv"
+
+  if File.exist?(CSV_FILE)
+    csvfile = CSV.read(CSV_FILE)
+    lastdate = Date.parse(csvfile[csvfile.length-1][0])
+  else
+    lastdate = Date.today
+    CSV.open(CSV_FILE, "w") do |csv|
+      csv << ["date", "incoming", "outgoing", "discuss"]
+    end
+  end
+
+
+  CSV.open(CSV_FILE, "a") do |csv|
 
     #Start counting from the last full day
-    refdate = Date.today - 1.day
+    refdate = lastdate - 1.day
     if numdays > 0
-      puts "\nDate\tIn Count\tOut Count"
+      puts "\nDate\tIn Count\tOut Count\tSTMgt Count"
       numdays.times do
         incount = gmail.mailbox('[Gmail]/All Mail').count(:read, :after => (refdate), :before => (refdate+1.day)).to_s
         outcount = gmail.mailbox('[Gmail]/Sent Mail').count(:after => (refdate), :before => (refdate+1.day)).to_s
-        puts refdate.to_s + "\t" + incount + "\t" + outcount + "\n"
-        csv << [refdate.to_s, incount, outcount]
+        discusscount = gmail.mailbox('[Gmail]/All Mail').count(:after => (refdate), :before => (refdate+1.day), :to => "st-mgt@yale.edu").to_s
+        puts refdate.to_s + "\t" + incount + "\t" + outcount + "\t" + discusscount + "\n"
+        csv << [refdate.strftime("%Y-%m-%d"), incount, outcount, discusscount]
         refdate = refdate - 1.day
       end
     end
   end
+
+
+  #FasterCSV.open(CSV_FILE, 'a') do |csv|
+  #Gmail.connect(USERNAME, PASSWORD) do |gmail|
+    #now = Time.now
+    #counts = [ now.to_i.to_s, now.strftime("%Y/%m/%d.%H:%M:%S") ]
+    #labels.each do |label|
+      #unread = label.gsub!(/ unread$/, '')
+      #folder = gmail.mailbox(label)
+      #count = unread ? folder.count(:unread) : folder.count
+      #puts "%s: %d (%d unread, %d read)" % \
+        #[ label, count, folder.count(:unread), folder.count(:read) ]
+      #counts << count
+    #end
+    #csv << counts
+  #end
+#end
   
 
   #Count number of incoming and outgoing messages over the past week
@@ -111,8 +142,9 @@ begin
 
 
   #Plot emails by day of week
+  if false
   puts "In/Out by day of week. How many weeks?"
-  numweeks = gets.chomp.to_i
+  numweeks = $stdin.gets.chomp.to_i
 
   if numweeks > 0
     outputdata = {}
@@ -136,7 +168,7 @@ begin
       puts key + "\t" + outputdata[key]["in"].to_s + "\t" + outputdata[key]["out"].to_s + "\n"
     end
   end
-
+  end
 
 
   #####  This gmail gem rounds to the nearest day for its queries  ####
@@ -160,10 +192,8 @@ begin
   #date += 1.day
   #end
 
-
-rescue ArgumentError => e
-  puts e
-end
+  #If possible, have the computer say it's done.
+  system "say 'completed'"
 
 
 
